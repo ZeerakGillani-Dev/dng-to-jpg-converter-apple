@@ -1,8 +1,6 @@
-# DNG → JPG Converter
+# DNG → JPG Converter + JPG Bulk Resizer
 
-A lightweight Windows tool for converting iPhone ProRAW (`.dng`) photos to `.jpg`. Works from the GUI or the command line.
-
-iPhone ProRAW files are great for editing, but at 25–50 MB each they're impractical for sharing, uploading, or archiving. This tool extracts the iPhone's own processed preview — preserving Smart HDR, Deep Fusion, Night Mode, and all computational photography — and saves it as a standard JPEG.
+A lightweight Windows tool for converting iPhone ProRAW (`.dng`) photos to `.jpg`, and for batch-shrinking JPGs under a file size limit.
 
 ---
 
@@ -15,21 +13,30 @@ iPhone ProRAW files are great for editing, but at 25–50 MB each they're imprac
 
 ### Option A: Double-click
 
-1. Put `dng_to_jpg_converter.py` and `RUN_CONVERTER.bat` in the same folder.
-2. Double-click **RUN_CONVERTER.bat**. It installs dependencies and opens the GUI.
+Double-click **RUN_CONVERTER.bat** — installs dependencies and opens the GUI.
 
 ### Option B: Terminal
 
 ```powershell
 pip install rawpy Pillow
-python dng_to_jpg_converter.py IMG_0042.dng
+python dng_to_jpg_converter.py
 ```
 
 ---
 
-## Usage
+## Features
 
-### GUI Mode
+### 1. DNG → JPG Conversion
+
+Extracts the iPhone's embedded processed preview (preserving Smart HDR, Deep Fusion, Night Mode, etc.) and saves it as a standard JPEG with correct orientation.
+
+### 2. JPG Bulk Resizer
+
+Select a folder of JPGs and shrink them all under a target size (default 2 MB). The tool finds the highest possible quality that fits, only scaling dimensions down as a last resort.
+
+---
+
+## GUI Usage
 
 Run with no arguments to open the graphical interface:
 
@@ -37,46 +44,65 @@ Run with no arguments to open the graphical interface:
 python dng_to_jpg_converter.py
 ```
 
-Three steps: browse for files → pick output folder and quality → hit Convert.
+Two tabs at the top:
 
-### CLI Mode
+- **DNG → JPG** — browse for DNG files/folder, set quality, convert
+- **Resize JPGs** — browse for JPG files/folder, set max file size (0.5–10 MB), resize
 
-Pass files or folders as arguments:
+---
+
+## CLI Usage
+
+### Convert DNG files
 
 ```powershell
-# Single file
-python dng_to_jpg_converter.py IMG_0042.dng
-
-# All DNG files in current directory
-python dng_to_jpg_converter.py *.dng
-
-# Entire folder (scans recursively)
-python dng_to_jpg_converter.py C:\Users\You\DCIM
-
-# Custom output folder + quality
-python dng_to_jpg_converter.py *.dng -o ./converted -q 85
+python dng_to_jpg_converter.py IMG_0042.dng             # one file
+python dng_to_jpg_converter.py *.dng                     # all in current dir
+python dng_to_jpg_converter.py *.dng -q 85               # custom quality
+python dng_to_jpg_converter.py C:\Photos\DCIM -o ./out   # folder in, folder out
 ```
-
-### CLI Options
 
 | Flag | Description | Default |
 |------|-------------|---------|
-| `files` | DNG files, glob patterns, or folders | *(opens GUI if omitted)* |
-| `-o`, `--output` | Output directory | Same as source file |
+| `-o`, `--output` | Output directory | Same as source |
 | `-q`, `--quality` | JPEG quality (50–100) | 95 |
-| `-h`, `--help` | Show help and examples | |
+
+### Resize JPG files
+
+```powershell
+python dng_to_jpg_converter.py resize ./photos           # shrink to < 2 MB
+python dng_to_jpg_converter.py resize ./photos -m 1      # shrink to < 1 MB
+python dng_to_jpg_converter.py resize *.jpg -o ./small   # output to separate folder
+```
+
+| Flag | Description | Default |
+|------|-------------|---------|
+| `-o`, `--output` | Output directory | Overwrites in place |
+| `-m`, `--max-mb` | Max file size in MB | 2.0 |
+
+### Show help
+
+```
+python dng_to_jpg_converter.py --help
+```
 
 ---
 
 ## How It Works
 
-iPhone ProRAW `.dng` files embed a full-resolution JPEG preview that includes all of the iPhone's computational photography processing. Rather than re-developing the raw sensor data (which loses Smart HDR, Deep Fusion, etc.), this tool:
+### DNG Conversion
 
-1. **Extracts the embedded JPEG preview** from the DNG — this is the photo as the iPhone intended it.
-2. **Applies EXIF orientation** so portrait/landscape rotation is correct.
-3. **Re-saves at your chosen quality** as a standard `.jpg`.
+iPhone ProRAW `.dng` files embed a full-resolution JPEG preview with all computational photography applied. The tool extracts that preview, applies EXIF orientation, and re-saves at your chosen quality.
 
-If a DNG has no embedded preview (e.g. camera DNGs, Adobe DNGs), it falls back to full raw processing with camera white balance.
+For non-iPhone DNG files (cameras, Adobe DNG), it falls back to raw processing with camera white balance.
+
+### JPG Resizing
+
+For each image over the size limit:
+
+1. Binary-searches JPEG quality (30–95) to find the highest quality that fits.
+2. If even quality 30 is too large, scales the image down in steps (90%, 80%, 70%…) and repeats the quality search.
+3. Images already under the limit are copied as-is.
 
 ---
 
@@ -84,27 +110,25 @@ If a DNG has no embedded preview (e.g. camera DNGs, Adobe DNGs), it falls back t
 
 ```
 dng_to_jpg_converter.py   # Main script — GUI + CLI
-RUN_CONVERTER.bat          # Windows launcher (installs deps, opens GUI)
+RUN_CONVERTER.bat          # Windows launcher
+README.md                  # This file
 ```
 
 ---
 
 ## Troubleshooting
 
-**`*.dng` converts 0 files or fails with I/O error**
-PowerShell doesn't expand `*.dng` like bash. This is handled in the script, but make sure you're running from the folder that contains your DNG files, or pass the full path.
+**`*.dng` or `*.jpg` matches nothing on PowerShell**
+The script handles glob expansion internally. Make sure you're running from the folder that contains the files, or pass a folder path instead.
 
-**Images look washed out or wrong colors**
-You may be using an older version that used raw processing instead of preview extraction. Re-download and replace the script.
+**Images look washed out**
+You may have an older version that used raw processing. Re-download the latest script.
 
-**Images are rotated sideways**
-Same as above — older versions didn't apply EXIF orientation. The current version fixes this.
+**Images are rotated**
+Same — older versions didn't apply EXIF orientation. Current version fixes this.
 
 **`rawpy` fails to install**
-On some systems you may need the Visual C++ Build Tools. Try:
-```
-pip install rawpy --only-binary :all:
-```
+Try: `pip install rawpy --only-binary :all:`
 
 ---
 
